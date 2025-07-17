@@ -30,7 +30,12 @@ function highlightDuplicatesDistinctColors() {
   }
 
   const startRow = 2; // Skip header row
-  const range = sheet.getRange(startRow, 3, sheet.getLastRow() - startRow + 1, 1);
+  const range = sheet.getRange(
+    startRow,
+    3,
+    sheet.getLastRow() - startRow + 1,
+    1,
+  );
   if (range.getNumRows() === 0) {
     return;
   }
@@ -227,6 +232,10 @@ function exportTdsSelectSnSheetAsExcel() {
             .withSuccessHandler(function (result) {
               if (result === true) {
                 alert("📧 DEP email draft created.");
+                window.open(
+                  "https://mail.google.com/mail/u/0/#drafts",
+                  "_blank",
+                );
               } else {
                 alert("⚠️ Error creating email draft.");
               }
