@@ -307,6 +307,14 @@ function findHeaderRow(sheet, required, synonyms) {
   return null;
 }
 
+/**
+ * Create a Gmail draft listing DEP device details.
+ *
+ * Reads the "DEP Data" sheet and compiles a table of devices using
+ * Order ID, Machine configuration, SN, and ABM ID columns.
+ *
+ * @returns {boolean} True on success, false otherwise.
+ */
 function createDepEmailDraft() {
   const sheet =
     SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DEP Data");
