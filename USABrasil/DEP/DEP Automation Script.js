@@ -1,3 +1,10 @@
+// @flow
+/**
+ * Utility script for spreadsheet automation tasks.
+ * - highlightDuplicatesDistinctColors: highlight duplicates in DEP Data sheet.
+ * - exportTdsSelectSnSheetAsExcel: export sheet to Excel.
+ * - deleteTempFile: remove temporary export from Drive.
+ */
 // Configuration object to customize export behavior.
 // Set `maxRows` to limit the number of rows exported.
 // Leave as `null` to export all rows.
@@ -8,6 +15,10 @@ const CONFIG = {
   },
 };
 
+/**
+ * Highlights duplicate values in column C with distinct colors.
+ * Expects the active sheet to be "DEP Data".
+ */
 function highlightDuplicatesDistinctColors() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
@@ -66,6 +77,11 @@ function highlightDuplicatesDistinctColors() {
   range.setBackgrounds(backgrounds);
 }
 
+/**
+ * Exports the "2 - TDS SELECT SNs" sheet as a temporary Excel file.
+ * Respects CONFIG.maxRows when limiting rows.
+ * Opens a sidebar with download and delete links.
+ */
 function exportTdsSelectSnSheetAsExcel() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = ss.getSheetByName("2 - TDS SELECT SNs");
@@ -223,6 +239,11 @@ function exportTdsSelectSnSheetAsExcel() {
   SpreadsheetApp.getUi().showSidebar(htmlOutput);
 }
 
+/**
+ * Deletes the specified Drive file.
+ * @param {string} fileId ID of the file to delete.
+ * @return {boolean} True if deletion succeeded, false otherwise.
+ */
 function deleteTempFile(fileId) {
   try {
     DriveApp.getFileById(fileId).setTrashed(true);
