@@ -177,6 +177,11 @@ function exportTdsSelectSnSheetAsExcel() {
       <button id="deleteBtn" style="background-color:#D93025;color:white;padding:8px 12px;border:none;border-radius:4px;cursor:pointer">
         Delete Temporary File
       </button>
+      <hr>
+      <p><strong>📧 DEP Email:</strong></p>
+      <button id="emailBtn" style="background-color:#1a73e8;color:white;padding:8px 12px;border:none;border-radius:4px;cursor:pointer">
+        Create DEP Email
+      </button>
 
       <script>
         document.getElementById("deleteBtn").onclick = function () {
@@ -190,6 +195,17 @@ function exportTdsSelectSnSheetAsExcel() {
               }
             })
             .deleteTempFile('${fileId}');
+        };
+        document.getElementById("emailBtn").onclick = function () {
+          google.script.run
+            .withSuccessHandler(function (result) {
+              if (result === true) {
+                alert("📧 DEP email draft created.");
+              } else {
+                alert("⚠️ Error creating email draft.");
+              }
+            })
+            .createDepEmailDraft();
         };
       </script>
 
@@ -225,4 +241,56 @@ function deleteTempFile(fileId) {
   } catch (e) {
     return false;
   }
+}
+
+/**
+ * Create a Gmail draft listing DEP device details.
+ *
+ * Reads the "DEP Data" sheet and compiles a table of devices
+ * using Order ID, Machine configuration, SN, and ABM ID columns.
+ *
+ * @returns {boolean} True on success, false otherwise.
+ */
+function createDepEmailDraft() {
+  const sheet =
+    SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DEP Data");
+
+  if (!sheet) {
+    return false;
+  }
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 3) {
+    return false;
+  }
+
+  const range = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn());
+  const rows = range.getValues();
+  const headers = rows.shift();
+
+  const indexMap = {};
+  headers.forEach((h, i) => {
+    indexMap[h] = i;
+  });
+
+  const required = ["Order ID", "Machine configuration", "SN", "ABM ID"];
+  const indexes = required.map((name) => indexMap[name]);
+
+  const lines = rows
+    .filter((r) => r[indexes[2]])
+    .map((r) => indexes.map((idx) => r[idx]).join(" | "));
+
+  if (lines.length === 0) {
+    return false;
+  }
+
+  const body = lines.join("\n");
+
+  GmailApp.createDraft(
+    "abrahamg@adorama.com,mendelnigri@gmail.com",
+    "Expercom - Request to add to ABM",
+    body,
+  );
+
+  return true;
 }
