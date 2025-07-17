@@ -43,7 +43,8 @@ This repository stores a Google Apps Script project used to automate operations 
 3. In the sidebar, click **Create DEP Email**. This action creates a Gmail draft
    from `dimaiscorp@gmail.com` with the exported spreadsheet (.xlsx) automatically
    attached.
-4. Open Gmail to review and send the draft when ready.
+4. Once the draft is created, a new Gmail tab opens displaying your drafts so you
+   can review and send the email.
 
 ## Expected Exported File
 
