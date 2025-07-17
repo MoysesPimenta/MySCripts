@@ -152,16 +152,28 @@ function exportTdsSelectSnSheetAsExcel() {
   targetRange.setHorizontalAlignments(horizontalAlignments);
   targetRange.setVerticalAlignments(verticalAlignments);
 
-  // Column widths
-  for (let c = 1; c <= numCols; c++) {
-    const width = sourceSheet.getColumnWidth(c);
-    targetSheet.setColumnWidth(c, width);
+  // Column widths - group identical widths for efficiency
+  let colGroupStart = 1;
+  let currentColWidth = sourceSheet.getColumnWidth(1);
+  for (let c = 2; c <= numCols + 1; c++) {
+    const width = c <= numCols ? sourceSheet.getColumnWidth(c) : NaN;
+    if (width !== currentColWidth) {
+      targetSheet.setColumnWidths(colGroupStart, c - colGroupStart, currentColWidth);
+      colGroupStart = c;
+      currentColWidth = width;
+    }
   }
 
-  // Row heights
-  for (let r = 1; r <= numRows; r++) {
-    const height = sourceSheet.getRowHeight(r);
-    targetSheet.setRowHeight(r, height);
+  // Row heights - group identical heights for efficiency
+  let rowGroupStart = 1;
+  let currentRowHeight = sourceSheet.getRowHeight(1);
+  for (let r = 2; r <= numRows + 1; r++) {
+    const height = r <= numRows ? sourceSheet.getRowHeight(r) : NaN;
+    if (height !== currentRowHeight) {
+      targetSheet.setRowHeights(rowGroupStart, r - rowGroupStart, currentRowHeight);
+      rowGroupStart = r;
+      currentRowHeight = height;
+    }
   }
 
   // Merged cells within range
