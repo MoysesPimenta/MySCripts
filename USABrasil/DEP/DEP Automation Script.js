@@ -344,15 +344,27 @@ function createDepEmailDraft() {
   );
   const rows = range.getValues();
 
-  const lines = rows
+  const formatted = rows
     .filter((r) => r[indexes[2]])
-    .map((r) => indexes.map((idx) => r[idx]).join(" | "));
+    .map((r) => {
+      const [orderId, machineConfig, sn, abmId] = indexes.map((idx) => r[idx]);
+      return (
+        `Order ID: ${orderId}\n` +
+        `Machine configuration: ${machineConfig}\n` +
+        `SN: ${sn}\n` +
+        `ABM ID: ${abmId}\n`
+      );
+    });
 
-  if (lines.length === 0) {
+  if (formatted.length === 0) {
     return false;
   }
 
-  const body = lines.join("\n");
+  const body =
+    "Hey there,\n\n" +
+    "Can you please add this machine to ABM?\n\n" +
+    formatted.join("\n") +
+    "\nBest,\nMoyses";
 
   GmailApp.createDraft(
     "abrahamg@adorama.com,mendelnigri@gmail.com",
