@@ -98,6 +98,7 @@ function highlightDuplicatesDistinctColors() {
  * @returns {void}
  */
 function exportTdsSelectSnSheetAsExcel() {
+  console.time("export");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = ss.getSheetByName("2 - TDS SELECT SNs");
 
@@ -119,80 +120,25 @@ function exportTdsSelectSnSheetAsExcel() {
     DriveApp.getRootFolder().removeFile(file);
   }
 
-  const tempSheet = tempSpreadsheet.getSheets()[0];
-  const targetSheet = tempSheet.setName("2 - TDS SELECT SNs");
+  const defaultSheet = tempSpreadsheet.getSheets()[0];
+  const targetSheet = sourceSheet
+    .copyTo(tempSpreadsheet)
+    .setName("2 - TDS SELECT SNs");
+  tempSpreadsheet.deleteSheet(defaultSheet);
 
-  const numCols = sourceSheet.getLastColumn();
-  const maxRows =
-    typeof CONFIG.maxRows === "number"
-      ? CONFIG.maxRows
-      : sourceSheet.getLastRow();
-  const numRows = Math.min(sourceSheet.getLastRow(), maxRows);
-
-  const sourceRange = sourceSheet.getRange(1, 1, numRows, numCols);
-
-  // Extract values and styles
-  const values = sourceRange.getValues();
-  const formats = sourceRange.getNumberFormats();
-  const backgrounds = sourceRange.getBackgrounds();
-  const fontColors = sourceRange.getFontColors();
-  const fontWeights = sourceRange.getFontWeights();
-  const fontStyles = sourceRange.getFontStyles();
-  const horizontalAlignments = sourceRange.getHorizontalAlignments();
-  const verticalAlignments = sourceRange.getVerticalAlignments();
-
-  // Apply values and styles
-  const targetRange = targetSheet.getRange(1, 1, numRows, numCols);
-  targetRange.setValues(values);
-  targetRange.setNumberFormats(formats);
-  targetRange.setBackgrounds(backgrounds);
-  targetRange.setFontColors(fontColors);
-  targetRange.setFontWeights(fontWeights);
-  targetRange.setFontStyles(fontStyles);
-  targetRange.setHorizontalAlignments(horizontalAlignments);
-  targetRange.setVerticalAlignments(verticalAlignments);
-
-  // Column widths - group identical widths for efficiency
-  let colGroupStart = 1;
-  let currentColWidth = sourceSheet.getColumnWidth(1);
-  for (let c = 2; c <= numCols + 1; c++) {
-    const width = c <= numCols ? sourceSheet.getColumnWidth(c) : NaN;
-    if (width !== currentColWidth) {
-      targetSheet.setColumnWidths(colGroupStart, c - colGroupStart, currentColWidth);
-      colGroupStart = c;
-      currentColWidth = width;
+  if (typeof CONFIG.maxRows === "number") {
+    const maxRows = CONFIG.maxRows;
+    const lastRow = targetSheet.getMaxRows();
+    if (lastRow > maxRows) {
+      targetSheet.deleteRows(maxRows + 1, lastRow - maxRows);
     }
   }
 
-  // Row heights - group identical heights for efficiency
-  let rowGroupStart = 1;
-  let currentRowHeight = sourceSheet.getRowHeight(1);
-  for (let r = 2; r <= numRows + 1; r++) {
-    const height = r <= numRows ? sourceSheet.getRowHeight(r) : NaN;
-    if (height !== currentRowHeight) {
-      targetSheet.setRowHeights(rowGroupStart, r - rowGroupStart, currentRowHeight);
-      rowGroupStart = r;
-      currentRowHeight = height;
-    }
-  }
-
-  // Merged cells within range
-  const mergedRanges = sourceSheet
-    .getRange(1, 1, numRows, numCols)
-    .getMergedRanges();
-  mergedRanges.forEach((range) => {
-    const row = range.getRow();
-    const col = range.getColumn();
-    const rows = range.getNumRows();
-    const cols = range.getNumColumns();
-    if (row + rows - 1 <= maxRows) {
-      targetSheet.getRange(row, col, rows, cols).merge();
-    }
-  });
+  const numCols = targetSheet.getLastColumn();
 
   // ✅ Add subtle grid-style borders from row 7 down (like template)
   const dataStartRow = 7;
-  const dataRowCount = Math.max(0, numRows - dataStartRow + 1);
+  const dataRowCount = Math.max(0, targetSheet.getLastRow() - dataStartRow + 1);
   if (dataRowCount > 0) {
     const dataGridRange = targetSheet.getRange(
       dataStartRow,
@@ -263,6 +209,7 @@ function exportTdsSelectSnSheetAsExcel() {
     .setTitle("Export Complete")
     .setWidth(350);
 
+  console.timeEnd("export");
   SpreadsheetApp.getUi().showSidebar(htmlOutput);
 }
 
