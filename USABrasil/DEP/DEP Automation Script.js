@@ -404,7 +404,7 @@ function createDepEmailDraft(fileId) {
 
   GmailApp.createDraft(
     "abrahamg@adorama.com,mendelnigri@gmail.com",
-    "Expercom - Request to add to ABM",
+    "Adorama - Request to add to ABM",
     body,
     {
       from: "dimaiscorp@gmail.com",
