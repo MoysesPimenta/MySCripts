@@ -270,11 +270,34 @@ function createDepEmailDraft() {
 
   const indexMap = {};
   headers.forEach((h, i) => {
-    indexMap[h] = i;
+    indexMap[h.toString().trim().toLowerCase()] = i;
   });
 
-  const required = ["Order ID", "Machine configuration", "SN", "ABM ID"];
-  const indexes = required.map((name) => indexMap[name]);
+  const required = ["order id", "machine configuration", "sn", "abm id"];
+  const synonyms = {
+    sn: ["serial number"],
+    "machine configuration": ["machine configuration"],
+  };
+
+  const indexes = required.map((name) => {
+    const normalizedName = name.toLowerCase();
+    let idx = indexMap[normalizedName];
+    if (idx === undefined && Array.isArray(synonyms[normalizedName])) {
+      idx = synonyms[normalizedName]
+        .map((alt) => indexMap[alt])
+        .find((i) => i !== undefined);
+    }
+    return idx;
+  });
+
+  if (indexes.some((i) => i === undefined)) {
+    const missing = indexes
+      .map((idx, i) => (idx === undefined ? required[i] : null))
+      .filter(Boolean)
+      .join(", ");
+    SpreadsheetApp.getUi().alert(`Missing required columns: ${missing}`);
+    return false;
+  }
 
   const lines = rows
     .filter((r) => r[indexes[2]])
