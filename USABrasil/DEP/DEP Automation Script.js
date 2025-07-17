@@ -370,6 +370,7 @@ function createDepEmailDraft() {
     "abrahamg@adorama.com,mendelnigri@gmail.com",
     "Expercom - Request to add to ABM",
     body,
+    { from: "dimaiscorp@gmail.com" },
   );
 
   return true;
