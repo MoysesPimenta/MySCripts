@@ -40,7 +40,10 @@ This repository stores a Google Apps Script project used to automate operations 
 
 1. Ensure the spreadsheet contains a sheet named `DEP Data`.
 2. Run `highlightDuplicatesDistinctColors` to open the sidebar.
-3. In the sidebar, click **Create DEP Email Draft** to generate the email draft.
+3. In the sidebar, click **Create DEP Email**. This action creates a Gmail draft
+   from `dimaiscorp@gmail.com` with the exported Excel file automatically
+   attached.
+4. Open Gmail to review and send the draft when ready.
 
 ## Expected Exported File
 
