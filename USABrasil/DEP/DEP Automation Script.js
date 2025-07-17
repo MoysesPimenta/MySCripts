@@ -221,7 +221,7 @@ function exportTdsSelectSnSheetAsExcel() {
                 alert("⚠️ Error creating email draft.");
               }
             })
-            .createDepEmailDraft();
+            .createDepEmailDraft('${fileId}');
         };
       </script>
 
@@ -266,6 +266,7 @@ function deleteTempFile(fileId) {
  * Order ID, Machine configuration, SN, and ABM ID columns.
  * The ABM ID column can also be labeled as "DEP ID" in the sheet.
  *
+ * @param {string} fileId ID of the exported file to attach.
  * @returns {boolean} True on success, false otherwise.
  */
 /**
@@ -307,7 +308,7 @@ function findHeaderRow(sheet, required, synonyms) {
   return null;
 }
 
-function createDepEmailDraft() {
+function createDepEmailDraft(fileId) {
   const sheet =
     SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DEP Data");
 
@@ -370,6 +371,7 @@ function createDepEmailDraft() {
     "abrahamg@adorama.com,mendelnigri@gmail.com",
     "Expercom - Request to add to ABM",
     body,
+    { attachments: [DriveApp.getFileById(fileId)] },
   );
 
   return true;
