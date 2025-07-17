@@ -29,8 +29,14 @@ function highlightDuplicatesDistinctColors() {
     return;
   }
 
-  const range = sheet.getRange("C3:C" + sheet.getLastRow());
-  const values = range.getValues().flat();
+  const startRow = 2; // Skip header row
+  const range = sheet.getRange(startRow, 3, sheet.getLastRow() - startRow + 1, 1);
+  if (range.getNumRows() === 0) {
+    return;
+  }
+
+  const rawValues = range.getDisplayValues();
+  const values = rawValues.map((row) => row[0].toString().trim().toLowerCase());
 
   // Reset background color
   range.setBackground(null);
@@ -73,6 +79,10 @@ function highlightDuplicatesDistinctColors() {
   const duplicates = Array.from(frequencyMap.entries())
     .filter(([, count]) => count > 1)
     .map(([value]) => value);
+
+  if (duplicates.length === 0) {
+    return;
+  }
 
   const duplicateSet = new Set(duplicates);
 
