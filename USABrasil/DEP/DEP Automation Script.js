@@ -1,3 +1,10 @@
+// Configuration object to customize export behavior.
+// Set `maxRows` to limit the number of rows exported.
+// Leave as `null` to export all rows.
+const CONFIG = {
+  maxRows: null,
+}
+
 function highlightDuplicatesDistinctColors() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet()
 
@@ -69,9 +76,12 @@ function exportTdsSelectSnSheetAsExcel() {
   const tempSheet = tempSpreadsheet.getSheets()[0]
   const targetSheet = tempSheet.setName("2 - TDS SELECT SNs")
 
-  const MAX_ROWS = 50
   const numCols = sourceSheet.getLastColumn()
-  const numRows = Math.min(sourceSheet.getLastRow(), MAX_ROWS)
+  const maxRows =
+    typeof CONFIG.maxRows === 'number'
+      ? CONFIG.maxRows
+      : sourceSheet.getLastRow()
+  const numRows = Math.min(sourceSheet.getLastRow(), maxRows)
 
   const sourceRange = sourceSheet.getRange(1, 1, numRows, numCols)
 
@@ -117,7 +127,7 @@ function exportTdsSelectSnSheetAsExcel() {
     const col = range.getColumn()
     const rows = range.getNumRows()
     const cols = range.getNumColumns()
-    if (row + rows - 1 <= MAX_ROWS) {
+    if (row + rows - 1 <= maxRows) {
       targetSheet.getRange(row, col, rows, cols).merge()
     }
   })
