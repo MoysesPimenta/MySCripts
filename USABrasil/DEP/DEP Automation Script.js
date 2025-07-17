@@ -94,6 +94,7 @@ function highlightDuplicatesDistinctColors() {
  * Exports the "2 - TDS SELECT SNs" sheet as a temporary Excel file.
  * Respects CONFIG.maxRows when limiting rows.
  * Opens a sidebar with download and delete links.
+ * Formulas in the copied sheet are replaced with static values.
  *
  * @returns {void}
  */
@@ -124,6 +125,8 @@ function exportTdsSelectSnSheetAsExcel() {
   const targetSheet = sourceSheet
     .copyTo(tempSpreadsheet)
     .setName("2 - TDS SELECT SNs");
+  const range = targetSheet.getDataRange();
+  range.copyTo(range, { contentsOnly: true });
   tempSpreadsheet.deleteSheet(defaultSheet);
 
   if (typeof CONFIG.maxRows === "number") {
