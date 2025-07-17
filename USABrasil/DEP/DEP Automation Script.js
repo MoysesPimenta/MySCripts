@@ -162,7 +162,6 @@ function exportTdsSelectSnSheetAsExcel() {
   const fileId = tempSpreadsheet.getId();
   const downloadUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=xlsx`;
   const openSheetUrl = `https://docs.google.com/spreadsheets/d/${fileId}/edit`;
-  const deleteFunctionCall = `google.script.run.deleteTempFile('${fileId}')`;
 
   const html = `
     <div style="font-family:Arial;padding:16px">
