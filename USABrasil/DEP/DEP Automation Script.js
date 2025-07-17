@@ -311,7 +311,8 @@ function findHeaderRow(sheet, required, synonyms) {
 /**
  * Create a Gmail draft listing DEP device details.
  *
- * Reads the "DEP Data" sheet and attaches the exported file.
+ * Reads the "DEP Data" sheet and attaches the exported spreadsheet as
+ * an XLSX file.
  *
  * @param {string} fileId ID of the exported file to attach.
  * @returns {boolean} True on success, false otherwise.
@@ -375,15 +376,31 @@ function createDepEmailDraft(fileId) {
     formatted.join("\n") +
     "\nBest,\nMoyses";
 
+  const exportUrl =
+    "https://docs.google.com/spreadsheets/d/" + fileId + "/export?format=xlsx";
+  const token = ScriptApp.getOAuthToken();
+  const response = UrlFetchApp.fetch(exportUrl, {
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+
+  const blob = response.getBlob().setName("Exported TDS Sheet.xlsx");
+
   GmailApp.createDraft(
     "abrahamg@adorama.com,mendelnigri@gmail.com",
     "Expercom - Request to add to ABM",
     body,
     {
       from: "dimaiscorp@gmail.com",
-      attachments: [DriveApp.getFileById(fileId)],
+      attachments: [blob],
     },
   );
+
+  try {
+    DriveApp.getFileById(fileId).setTrashed(true);
+  } catch (e) {
+    // Ignore deletion errors
+  }
 
   return true;
 }
