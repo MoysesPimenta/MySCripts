@@ -1,0 +1,10 @@
+{
+  "name": "myscripts",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-plugin-flowtype": "^8.0.3",
+    "prettier": "^3.2.5"
+  }
+}
