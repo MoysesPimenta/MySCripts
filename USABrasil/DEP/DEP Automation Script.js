@@ -262,8 +262,9 @@ function deleteTempFile(fileId) {
 /**
  * Create a Gmail draft listing DEP device details.
  *
- * Reads the "DEP Data" sheet and compiles a table of devices
- * using Order ID, Machine configuration, SN, and ABM ID columns.
+ * Reads the "DEP Data" sheet and compiles a table of devices using
+ * Order ID, Machine configuration, SN, and ABM ID columns.
+ * The ABM ID column can also be labeled as "DEP ID" in the sheet.
  *
  * @returns {boolean} True on success, false otherwise.
  */
@@ -291,8 +292,9 @@ function createDepEmailDraft() {
 
   const required = ["order id", "machine configuration", "sn", "abm id"];
   const synonyms = {
-    sn: ["serial number"],
-    "machine configuration": ["machine configuration"],
+    sn: ["serial number", "sn"],
+    "machine configuration": ["machine configuration", "machine config"],
+    "abm id": ["dep id"],
   };
 
   const indexes = required.map((name) => {
