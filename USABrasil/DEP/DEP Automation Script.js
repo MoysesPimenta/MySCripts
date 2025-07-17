@@ -268,6 +268,45 @@ function deleteTempFile(fileId) {
  *
  * @returns {boolean} True on success, false otherwise.
  */
+/**
+ * Find the header row that contains all required columns.
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet Sheet to search.
+ * @param {string[]} required Column names that must exist.
+ * @param {Object<string, string[]>} synonyms Alternative names.
+ * @returns {{row: number, indexes: number[]} | null} Result or null if not found.
+ */
+function findHeaderRow(sheet, required, synonyms) {
+  const searchRows = Math.min(sheet.getLastRow(), 10);
+  const data = sheet
+    .getRange(1, 1, searchRows, sheet.getLastColumn())
+    .getValues();
+
+  for (let i = 0; i < data.length; i++) {
+    const indexMap = {};
+    data[i].forEach((h, idx) => {
+      indexMap[h.toString().trim().toLowerCase()] = idx;
+    });
+
+    const indexes = required.map((name) => {
+      const normalized = name.toLowerCase();
+      let idx = indexMap[normalized];
+      if (idx === undefined && Array.isArray(synonyms[normalized])) {
+        idx = synonyms[normalized]
+          .map((alt) => indexMap[alt])
+          .find((j) => j !== undefined);
+      }
+      return idx;
+    });
+
+    if (!indexes.some((j) => j === undefined)) {
+      return { row: i + 1, indexes };
+    }
+  }
+
+  return null;
+}
+
 function createDepEmailDraft() {
   const sheet =
     SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DEP Data");
@@ -276,20 +315,6 @@ function createDepEmailDraft() {
     return false;
   }
 
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 3) {
-    return false;
-  }
-
-  const range = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn());
-  const rows = range.getValues();
-  const headers = rows.shift();
-
-  const indexMap = {};
-  headers.forEach((h, i) => {
-    indexMap[h.toString().trim().toLowerCase()] = i;
-  });
-
   const required = ["order id", "machine configuration", "sn", "abm id"];
   const synonyms = {
     sn: ["serial number", "sn"],
@@ -297,41 +322,49 @@ function createDepEmailDraft() {
     "abm id": ["dep id"],
   };
 
-  const indexes = required.map((name) => {
-    const normalizedName = name.toLowerCase();
-    let idx = indexMap[normalizedName];
-    if (idx === undefined && Array.isArray(synonyms[normalizedName])) {
-      idx = synonyms[normalizedName]
-        .map((alt) => indexMap[alt])
-        .find((i) => i !== undefined);
-    }
-    return idx;
-  });
-
-  if (indexes.some((i) => i === undefined)) {
-    const missing = indexes
-      .map((idx, i) => (idx === undefined ? required[i] : null))
-      .filter(Boolean)
-      .join(", ");
-    SpreadsheetApp.getUi().alert(`Missing required columns: ${missing}`);
+  const headerInfo = findHeaderRow(sheet, required, synonyms);
+  if (!headerInfo) {
+    SpreadsheetApp.getUi().alert(
+      `Missing required columns: ${required.join(", ")}`,
+    );
     return false;
   }
 
-  const missing = required.filter((_, idx) => indexes[idx] === undefined);
-  if (missing.length > 0) {
-    SpreadsheetApp.getUi().alert(`Missing columns: ${missing.join(", ")}`);
+  const { row: headerRow, indexes } = headerInfo;
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= headerRow) {
     return false;
   }
 
-  const lines = rows
+  const range = sheet.getRange(
+    headerRow + 1,
+    1,
+    lastRow - headerRow,
+    sheet.getLastColumn(),
+  );
+  const rows = range.getValues();
+
+  const entries = rows
     .filter((r) => r[indexes[2]])
-    .map((r) => indexes.map((idx) => r[idx]).join(" | "));
+    .map((r) => {
+      const [orderId, machineConfig, sn, abmId] = indexes.map((idx) => r[idx]);
+      return (
+        `Order ID: ${orderId}\n` +
+        `Machine configuration: ${machineConfig}\n` +
+        `SN: ${sn}\n` +
+        `ABM ID: ${abmId}`
+      );
+    });
 
-  if (lines.length === 0) {
+  if (entries.length === 0) {
     return false;
   }
 
-  const body = lines.join("\n");
+  const body =
+    "Hey there,\n\n" +
+    "Can you please add this machine to ABM?\n\n" +
+    entries.join("\n\n") +
+    "\n\nBest,\nMoyses";
 
   GmailApp.createDraft(
     "abrahamg@adorama.com,mendelnigri@gmail.com",
