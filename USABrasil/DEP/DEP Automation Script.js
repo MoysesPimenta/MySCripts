@@ -3,6 +3,9 @@
 // Leave as `null` to export all rows.
 const CONFIG = {
   maxRows: null,
+  export: {
+    folderName: "Exports",
+  },
 };
 
 function highlightDuplicatesDistinctColors() {
@@ -73,6 +76,18 @@ function exportTdsSelectSnSheetAsExcel() {
   }
 
   const tempSpreadsheet = SpreadsheetApp.create("Exported TDS Sheet");
+
+  const exportFolderName = CONFIG.export.folderName;
+  if (exportFolderName) {
+    const folders = DriveApp.getFoldersByName(exportFolderName);
+    const folder = folders.hasNext()
+      ? folders.next()
+      : DriveApp.createFolder(exportFolderName);
+    const file = DriveApp.getFileById(tempSpreadsheet.getId());
+    folder.addFile(file);
+    DriveApp.getRootFolder().removeFile(file);
+  }
+
   const tempSheet = tempSpreadsheet.getSheets()[0];
   const targetSheet = tempSheet.setName("2 - TDS SELECT SNs");
 
