@@ -1,3 +1,11 @@
+/**
+ * Highlight duplicate values in column C of the active "DEP Data" sheet.
+ *
+ * Each distinct duplicate is given a different background color so that
+ * duplicates can be quickly identified.
+ *
+ * @returns {void}
+ */
 function highlightDuplicatesDistinctColors() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet()
 
@@ -56,6 +64,15 @@ function highlightDuplicatesDistinctColors() {
   range.setBackgrounds(backgrounds)
 }
 
+/**
+ * Export the "2 - TDS SELECT SNs" sheet to a temporary spreadsheet.
+ *
+ * Only the first 50 rows are copied along with formatting. A sidebar is
+ * displayed with a link to download the temporary spreadsheet as an Excel
+ * file and an option to delete it.
+ *
+ * @returns {void}
+ */
 function exportTdsSelectSnSheetAsExcel() {
   const ss = SpreadsheetApp.getActiveSpreadsheet()
   const sourceSheet = ss.getSheetByName("2 - TDS SELECT SNs")
@@ -198,6 +215,12 @@ function exportTdsSelectSnSheetAsExcel() {
   SpreadsheetApp.getUi().showSidebar(htmlOutput)
 }
 
+/**
+ * Delete the temporary spreadsheet created during export.
+ *
+ * @param {string} fileId - ID of the spreadsheet file to delete.
+ * @returns {boolean} Whether the deletion succeeded.
+ */
 function deleteTempFile(fileId) {
   try {
     DriveApp.getFileById(fileId).setTrashed(true)
