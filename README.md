@@ -35,6 +35,12 @@ This repository stores a Google Apps Script project used to automate operations 
 1. Activate the `DEP Data` sheet in the spreadsheet.
 2. Run the `highlightDuplicatesDistinctColors` function to color all duplicate values in column C using distinct colors.
 
+### `createDepEmailDraft`
+
+1. Ensure the spreadsheet contains a sheet named `DEP Data`.
+2. Run `highlightDuplicatesDistinctColors` to open the sidebar.
+3. In the sidebar, click **Create DEP Email Draft** to generate the email draft.
+
 ## Expected Exported File
 
 The `Expected Exported File.xlsx` in `USABrasil/DEP` is a sample output produced by `exportTdsSelectSnSheetAsExcel`. When running the script, you will receive a download link to a similar file generated temporarily in your Google Drive.
