@@ -301,6 +301,12 @@ function createDepEmailDraft() {
     return false;
   }
 
+  const missing = required.filter((_, idx) => indexes[idx] === undefined);
+  if (missing.length > 0) {
+    SpreadsheetApp.getUi().alert(`Missing columns: ${missing.join(", ")}`);
+    return false;
+  }
+
   const lines = rows
     .filter((r) => r[indexes[2]])
     .map((r) => indexes.map((idx) => r[idx]).join(" | "));
