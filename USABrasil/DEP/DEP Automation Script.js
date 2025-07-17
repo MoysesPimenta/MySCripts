@@ -151,15 +151,19 @@ function exportTdsSelectSnSheetAsExcel() {
 
   // ✅ Add subtle grid-style borders from row 7 down (like template)
   const dataStartRow = 7;
-  const dataRowCount = Math.max(0, targetSheet.getLastRow() - dataStartRow + 1);
-  if (dataRowCount > 0) {
-    const dataGridRange = targetSheet.getRange(
+  const totalRowCount = Math.max(
+    targetSheet.getMaxRows() - dataStartRow + 1,
+    0,
+  );
+
+  if (totalRowCount > 0) {
+    const gridRange = targetSheet.getRange(
       dataStartRow,
       1,
-      dataRowCount,
+      totalRowCount,
       numCols,
     );
-    dataGridRange.setBorder(
+    gridRange.setBorder(
       true,
       true,
       true,
