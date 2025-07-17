@@ -1,18 +1,40 @@
-function highlightDuplicatesDistinctColors() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet()
+// @flow
+
+const CONFIG = {
+  sheetNames: {
+    depData: "DEP Data",
+    tdsSelect: "2 - TDS SELECT SNs",
+  },
+  export: {
+    folderName: "Exports",
+    filePrefix: "Exported TDS Sheet",
+    maxRows: 50,
+    uiTitle: "Export Complete",
+  },
+  email: {
+    recipients: "ops@example.com",
+    subject: "TDS Export Notification",
+  },
+};
+
+/**
+ * Highlight duplicates in column C using distinct colors.
+ */
+function highlightDuplicatesDistinctColors(): void {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
   // Silently exit if not on 'DEP Data' sheet
-  if (sheet.getName() !== "DEP Data") {
-    return
+  if (sheet.getName() !== CONFIG.sheetNames.depData) {
+    return;
   }
 
-  const range = sheet.getRange("C3:C" + sheet.getLastRow())
-  const values = range.getValues().flat()
+  const range = sheet.getRange("C3:C" + sheet.getLastRow());
+  const values = range.getValues().flat();
 
   // Reset background color
-  range.setBackground(null)
+  range.setBackground(null);
 
-  const colorMap = {}
+  const colorMap = {};
   const colors = [
     "#FFCDD2",
     "#C5E1A5",
@@ -34,104 +56,110 @@ function highlightDuplicatesDistinctColors() {
     "#BA68C8",
     "#7986CB",
     "#4DB6AC",
-  ]
+  ];
 
-  let colorIndex = 0
+  let colorIndex = 0;
 
   const duplicates = values.filter(
-    (item, index) => values.indexOf(item) !== index && item !== ""
-  )
+    (item, index) => values.indexOf(item) !== index && item !== "",
+  );
 
   duplicates.forEach((value) => {
     if (!(value in colorMap)) {
-      colorMap[value] = colors[colorIndex % colors.length]
-      colorIndex++
+      colorMap[value] = colors[colorIndex % colors.length];
+      colorIndex++;
     }
-  })
+  });
 
   const backgrounds = values.map((value) =>
-    duplicates.includes(value) ? [colorMap[value]] : [null]
-  )
+    duplicates.includes(value) ? [colorMap[value]] : [null],
+  );
 
-  range.setBackgrounds(backgrounds)
+  range.setBackgrounds(backgrounds);
 }
 
-function exportTdsSelectSnSheetAsExcel() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet()
-  const sourceSheet = ss.getSheetByName("2 - TDS SELECT SNs")
+/**
+ * Export the TDS sheet as a temporary spreadsheet and
+ * show a sidebar with a download link.
+ */
+function exportTdsSelectSnSheetAsExcel(): void {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = ss.getSheetByName(CONFIG.sheetNames.tdsSelect);
 
   if (!sourceSheet) {
-    SpreadsheetApp.getUi().alert(`Sheet "2 - TDS SELECT SNs" not found.`)
-    return
+    SpreadsheetApp.getUi().alert(
+      `Sheet "${CONFIG.sheetNames.tdsSelect}" not found.`,
+    );
+    return;
   }
 
-  const tempSpreadsheet = SpreadsheetApp.create("Exported TDS Sheet")
-  const tempSheet = tempSpreadsheet.getSheets()[0]
-  const targetSheet = tempSheet.setName("2 - TDS SELECT SNs")
+  const tempSpreadsheet = SpreadsheetApp.create(CONFIG.export.filePrefix);
+  const tempSheet = tempSpreadsheet.getSheets()[0];
+  const targetSheet = tempSheet.setName(CONFIG.sheetNames.tdsSelect);
 
-  const MAX_ROWS = 50
-  const numCols = sourceSheet.getLastColumn()
-  const numRows = Math.min(sourceSheet.getLastRow(), MAX_ROWS)
+  const MAX_ROWS = CONFIG.export.maxRows;
+  const numCols = sourceSheet.getLastColumn();
+  const numRows = Math.min(sourceSheet.getLastRow(), MAX_ROWS);
 
-  const sourceRange = sourceSheet.getRange(1, 1, numRows, numCols)
+  const sourceRange = sourceSheet.getRange(1, 1, numRows, numCols);
 
   // Extract values and styles
-  const values = sourceRange.getValues()
-  const formats = sourceRange.getNumberFormats()
-  const backgrounds = sourceRange.getBackgrounds()
-  const fontColors = sourceRange.getFontColors()
-  const fontWeights = sourceRange.getFontWeights()
-  const fontStyles = sourceRange.getFontStyles()
-  const horizontalAlignments = sourceRange.getHorizontalAlignments()
-  const verticalAlignments = sourceRange.getVerticalAlignments()
+  const values = sourceRange.getValues();
+  const formats = sourceRange.getNumberFormats();
+  const backgrounds = sourceRange.getBackgrounds();
+  const fontColors = sourceRange.getFontColors();
+  const fontWeights = sourceRange.getFontWeights();
+  const fontStyles = sourceRange.getFontStyles();
+  const horizontalAlignments = sourceRange.getHorizontalAlignments();
+  const verticalAlignments = sourceRange.getVerticalAlignments();
 
   // Apply values and styles
-  const targetRange = targetSheet.getRange(1, 1, numRows, numCols)
-  targetRange.setValues(values)
-  targetRange.setNumberFormats(formats)
-  targetRange.setBackgrounds(backgrounds)
-  targetRange.setFontColors(fontColors)
-  targetRange.setFontWeights(fontWeights)
-  targetRange.setFontStyles(fontStyles)
-  targetRange.setHorizontalAlignments(horizontalAlignments)
-  targetRange.setVerticalAlignments(verticalAlignments)
+  const targetRange = targetSheet.getRange(1, 1, numRows, numCols);
+  targetRange.setValues(values);
+  targetRange.setNumberFormats(formats);
+  targetRange.setBackgrounds(backgrounds);
+  targetRange.setFontColors(fontColors);
+  targetRange.setFontWeights(fontWeights);
+  targetRange.setFontStyles(fontStyles);
+  targetRange.setHorizontalAlignments(horizontalAlignments);
+  targetRange.setVerticalAlignments(verticalAlignments);
 
   // Column widths
   for (let c = 1; c <= numCols; c++) {
-    const width = sourceSheet.getColumnWidth(c)
-    targetSheet.setColumnWidth(c, width)
+    const width = sourceSheet.getColumnWidth(c);
+    targetSheet.setColumnWidth(c, width);
   }
 
   // Row heights
   for (let r = 1; r <= numRows; r++) {
-    const height = sourceSheet.getRowHeight(r)
-    targetSheet.setRowHeight(r, height)
+    const height = sourceSheet.getRowHeight(r);
+    targetSheet.setRowHeight(r, height);
   }
 
   // Merged cells within range
   const mergedRanges = sourceSheet
     .getRange(1, 1, numRows, numCols)
-    .getMergedRanges()
+    .getMergedRanges();
   mergedRanges.forEach((range) => {
-    const row = range.getRow()
-    const col = range.getColumn()
-    const rows = range.getNumRows()
-    const cols = range.getNumColumns()
+    const row = range.getRow();
+    const col = range.getColumn();
+    const rows = range.getNumRows();
+    const cols = range.getNumColumns();
     if (row + rows - 1 <= MAX_ROWS) {
-      targetSheet.getRange(row, col, rows, cols).merge()
+      targetSheet.getRange(row, col, rows, cols).merge();
     }
-  })
+  });
 
   // ✅ Add subtle grid-style borders from row 7 down (like template)
-  const dataStartRow = 7
-  const dataRowCount = Math.max(0, numRows - dataStartRow + 1)
+  const dataStartRow = 7;
+  const dataRowCount = Math.max(0, numRows - dataStartRow + 1);
   if (dataRowCount > 0) {
     const dataGridRange = targetSheet.getRange(
       dataStartRow,
       1,
       dataRowCount,
-      numCols
-    )
+      numCols,
+    );
     dataGridRange.setBorder(
       true,
       true,
@@ -140,15 +168,15 @@ function exportTdsSelectSnSheetAsExcel() {
       true,
       true,
       "#d9d9d9",
-      SpreadsheetApp.BorderStyle.SOLID
-    )
+      SpreadsheetApp.BorderStyle.SOLID,
+    );
   }
 
   // Build sidebar with download/delete
-  const fileId = tempSpreadsheet.getId()
-  const downloadUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=xlsx`
-  const openSheetUrl = `https://docs.google.com/spreadsheets/d/${fileId}/edit`
-  const deleteFunctionCall = `google.script.run.deleteTempFile('${fileId}')`
+  const fileId = tempSpreadsheet.getId();
+  const downloadUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=xlsx`;
+  const openSheetUrl = `https://docs.google.com/spreadsheets/d/${fileId}/edit`;
+  const deleteFunctionCall = `google.script.run.deleteTempFile('${fileId}')`;
 
   const html = `
     <div style="font-family:Arial;padding:16px">
@@ -189,20 +217,26 @@ function exportTdsSelectSnSheetAsExcel() {
       </script>
       -->
     </div>
-  `
+  `;
 
   const htmlOutput = HtmlService.createHtmlOutput(html)
-    .setTitle("Export Complete")
-    .setWidth(350)
+    .setTitle(CONFIG.export.uiTitle)
+    .setWidth(350);
 
-  SpreadsheetApp.getUi().showSidebar(htmlOutput)
+  SpreadsheetApp.getUi().showSidebar(htmlOutput);
 }
 
-function deleteTempFile(fileId) {
+/**
+ * Delete a temporary file from Drive.
+ *
+ * @param {string} fileId - ID of the file to delete.
+ * @return {boolean} True if deletion succeeded, otherwise false.
+ */
+function deleteTempFile(fileId: string): boolean {
   try {
-    DriveApp.getFileById(fileId).setTrashed(true)
-    return true
+    DriveApp.getFileById(fileId).setTrashed(true);
+    return true;
   } catch (e) {
-    return false
+    return false;
   }
 }
