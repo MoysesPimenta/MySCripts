@@ -30,17 +30,14 @@ function highlightDuplicatesDistinctColors() {
   }
 
   const startRow = 2; // Skip header row
-  const range = sheet.getRange(
-    startRow,
-    3,
-    sheet.getLastRow() - startRow + 1,
-    1,
-  );
-  if (range.getNumRows() === 0) {
+  const lastRow = sheet.getLastRow();
+  const numRows = Math.max(lastRow - startRow + 1, 0);
+  if (numRows === 0) {
     return;
   }
 
-  const rawValues = range.getDisplayValues();
+  const range = sheet.getRange(startRow, 3, numRows, 1);
+  const rawValues = range.getValues();
   const values = rawValues.map((row) => row[0].toString().trim().toLowerCase());
 
   // Reset background color

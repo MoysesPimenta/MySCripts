@@ -34,7 +34,7 @@ This repository stores a Google Apps Script project used to automate operations 
 ### `highlightDuplicatesDistinctColors`
 
 1. Activate the `DEP Data` sheet in the spreadsheet.
-2. Run the `highlightDuplicatesDistinctColors` function to color all duplicate values in column C (starting at row 2) using distinct colors. The check is case-insensitive and ignores extra whitespace.
+2. Run the `highlightDuplicatesDistinctColors` function to color all duplicate values in column C starting at row 2. The check now relies on the raw cell values to avoid formatting issues and gracefully exits when no data rows are present. All matches are case-insensitive and ignore extra whitespace.
 
 ### `createDepEmailDraft`
 
