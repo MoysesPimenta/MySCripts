@@ -18,6 +18,8 @@ const CONFIG = {
 /**
  * Highlights duplicate values in column C with distinct colors.
  * Expects the active sheet to be "DEP Data".
+ *
+ * @returns {void}
  */
 function highlightDuplicatesDistinctColors() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -81,6 +83,8 @@ function highlightDuplicatesDistinctColors() {
  * Exports the "2 - TDS SELECT SNs" sheet as a temporary Excel file.
  * Respects CONFIG.maxRows when limiting rows.
  * Opens a sidebar with download and delete links.
+ *
+ * @returns {void}
  */
 function exportTdsSelectSnSheetAsExcel() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
