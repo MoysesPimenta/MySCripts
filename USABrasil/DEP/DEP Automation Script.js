@@ -122,11 +122,21 @@ function exportTdsSelectSnSheetAsExcel() {
   }
 
   const defaultSheet = tempSpreadsheet.getSheets()[0];
+  const dataRange = sourceSheet.getDataRange();
+  const dataValues = dataRange.getValues();
+
   const targetSheet = sourceSheet
     .copyTo(tempSpreadsheet)
     .setName("2 - TDS SELECT SNs");
-  const range = targetSheet.getDataRange();
-  range.copyTo(range, { contentsOnly: true });
+
+  const targetRange = targetSheet.getRange(
+    dataRange.getRow(),
+    dataRange.getColumn(),
+    dataRange.getNumRows(),
+    dataRange.getNumColumns(),
+  );
+  targetRange.setValues(dataValues);
+
   tempSpreadsheet.deleteSheet(defaultSheet);
 
   if (typeof CONFIG.maxRows === "number") {

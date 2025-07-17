@@ -29,6 +29,7 @@ This repository stores a Google Apps Script project used to automate operations 
 1. Ensure the spreadsheet contains a sheet named `2 - TDS SELECT SNs`.
 2. From the spreadsheet, run the `exportTdsSelectSnSheetAsExcel` function via **Extensions → Apps Script → Run** or create a custom menu item.
 3. After execution, a sidebar appears with links to download the temporary Excel file and delete it once finished.
+4. Formulas in the exported sheet are replaced with their evaluated values to avoid `#REF!` errors.
 
 ### `highlightDuplicatesDistinctColors`
 
