@@ -371,7 +371,10 @@ function createDepEmailDraft(fileId) {
     "abrahamg@adorama.com,mendelnigri@gmail.com",
     "Expercom - Request to add to ABM",
     body,
-    { attachments: [DriveApp.getFileById(fileId)] },
+    {
+      from: "dimaiscorp@gmail.com",
+      attachments: [DriveApp.getFileById(fileId)],
+    },
   );
 
   return true;
