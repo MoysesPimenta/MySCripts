@@ -61,19 +61,30 @@ function highlightDuplicatesDistinctColors() {
 
   let colorIndex = 0;
 
-  const duplicates = values.filter(
-    (item, index) => values.indexOf(item) !== index && item !== "",
-  );
+  // Build frequency map to identify duplicates without costly indexOf calls.
+  const frequencyMap = new Map();
+  values.forEach((value) => {
+    if (value === "") {
+      return;
+    }
+    frequencyMap.set(value, (frequencyMap.get(value) || 0) + 1);
+  });
+
+  const duplicates = Array.from(frequencyMap.entries())
+    .filter(([, count]) => count > 1)
+    .map(([value]) => value);
+
+  const duplicateSet = new Set(duplicates);
 
   duplicates.forEach((value) => {
-    if (!(value in colorMap)) {
+    if (!Object.prototype.hasOwnProperty.call(colorMap, value)) {
       colorMap[value] = colors[colorIndex % colors.length];
       colorIndex++;
     }
   });
 
   const backgrounds = values.map((value) =>
-    duplicates.includes(value) ? [colorMap[value]] : [null],
+    duplicateSet.has(value) ? [colorMap[value]] : [null],
   );
 
   range.setBackgrounds(backgrounds);
