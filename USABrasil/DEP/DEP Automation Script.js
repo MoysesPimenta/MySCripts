@@ -221,7 +221,7 @@ function exportTdsSelectSnSheetAsExcel() {
                 alert("⚠️ Error creating email draft.");
               }
             })
-            .createDepEmailDraft();
+            .createDepEmailDraft("${fileId}");
         };
       </script>
 
@@ -307,7 +307,7 @@ function findHeaderRow(sheet, required, synonyms) {
   return null;
 }
 
-function createDepEmailDraft() {
+function createDepEmailDraft(fileId) {
   const sheet =
     SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DEP Data");
 
@@ -370,6 +370,10 @@ function createDepEmailDraft() {
     "abrahamg@adorama.com,mendelnigri@gmail.com",
     "Expercom - Request to add to ABM",
     body,
+    {
+      attachments: [DriveApp.getFileById(fileId).getBlob()],
+      from: "dimaiscorp@gmail.com",
+    },
   );
 
   return true;
