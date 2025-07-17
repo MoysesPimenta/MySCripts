@@ -308,6 +308,14 @@ function findHeaderRow(sheet, required, synonyms) {
   return null;
 }
 
+/**
+ * Create a Gmail draft listing DEP device details.
+ *
+ * Reads the "DEP Data" sheet and attaches the exported file.
+ *
+ * @param {string} fileId ID of the exported file to attach.
+ * @returns {boolean} True on success, false otherwise.
+ */
 function createDepEmailDraft(fileId) {
   const sheet =
     SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DEP Data");
