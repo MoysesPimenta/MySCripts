@@ -1,0 +1,553 @@
+/**
+ * =====================================================
+ *  INVOICE AUTOMATION – FULL APPS SCRIPT (v6 – 24 Jul 2025)
+ * =====================================================
+ *  Author: ChatGPT o3
+ *  Description: End‑to‑end automation for machine storage &
+ *               service billing with NFSe integration.
+ *
+ *  ▶ Key Features
+ *    • Auto‑creates all required sheets and headers.
+ *    • Builds data‑validation dropdowns (Serial, Client, ServiceType).
+ *    • Automatically creates the Google Docs invoice template
+ *      (white & blue theme, English) the first time you run Setup, and
+ *      stores its ID in ScriptProperties.
+ *    • Generates monthly invoices (PDF) into a Drive folder
+ *      and emails the client.
+ *    • Marks overdue invoices daily.
+ *    • Placeholder NFSe issuance via API (São Paulo).
+ *
+ * =====================================================*/
+
+/******************* CONFIG *******************/
+// ───── CONFIGURATION ──────────────────────────
+const CONFIG = {
+    COMPANY_NAME: 'Devops Consultoria e Desenvolvimento de Softwares LTDA',
+    COMPANY_ADDRESS: 'Av. Paulista, 1636, 15 Andar, CJ 04, Cerqueira Cezar, São Paulo, SP, 01310-200',
+    CNPJ: '54566671000143',
+    IM: '13006525',
+
+    TEMPLATE_DOC_ID: 'SET_BY_SETUP',          // will be created by ensureTemplateDoc()
+    PDF_FOLDER_ID: '1roHYH7e5g0CcnLsKa_QWdjnJ0hBmo6Fh',
+    NFSE_TOKEN: '<<NFSE_TOKEN_PLACEHOLDER>>'
+  };
+
+// ───── SHEET & HEADER DEFINITIONS ─────────────
+const SHEETS = {
+    MACHINES: 'Machines',
+    SERVICES: 'Services',
+    INVOICES: 'Invoices',
+    BILLING_CONFIG: 'BillingConfig',
+    CLIENTS: 'Clients',
+    DASHBOARD: 'Dashboards'
+  };
+
+const HEADERS = {
+  [SHEETS.MACHINES]: ['Serial','Model','ClientID','StorageRate','DateIn','DateOut','Status','LastBilledThrough'],
+  [SHEETS.SERVICES]: ['ServiceID','Serial','ClientID','ServiceDate','ServiceType','Description','UnitPrice','QtyHours','TotalPrice','Billed'],
+  [SHEETS.BILLING_CONFIG]: ['ServiceType','UnitPrice','TaxRate'],
+  [SHEETS.CLIENTS]: ['ClientID','Name','Address','ContactName','ContactPosition','ContactEmail','ContactPhone','Export'],
+  [SHEETS.INVOICES]: ['InvoiceID','ClientID','PeriodStart','PeriodEnd','IssueDate','DueDate','Total','Paid','PaymentDate','Overdue','PDFLink','NFSeNumber','NFSeType','LineItemsJSON']
+  };
+
+// ╭─────────────────────────────────────────────╮
+// │ UI ENTRY POINTS                             │
+// ╰─────────────────────────────────────────────╯
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Automation')
+    .addItem('Setup / Ensure Sheets', 'setupAll')
+    .addItem('Run Monthly Billing', 'runMonthlyBilling')
+    .addItem('Refresh Dashboards', 'refreshDashboards')
+    .addItem('Update Overdue Status', 'updateOverdueStatus')
+    .addItem('Issue NFSe', 'issueNFSeFromSelection')
+    .addToUi();
+  }
+
+function setupAll() {
+  ensureSheets();
+  ensureTemplateDoc();
+  refreshDashboards();
+  SpreadsheetApp.getUi().alert('Setup complete!');
+  }
+
+// ╭─────────────────────────────────────────────╮
+// │ SHEET BUILDERS                              │
+// ╰─────────────────────────────────────────────╯
+function ensureSheets() {
+  const ss = SpreadsheetApp.getActive();
+  Object.keys(SHEETS).forEach(key => {
+    const name = SHEETS[key];
+    let sh = ss.getSheetByName(name);
+    if (!sh) sh = ss.insertSheet(name);
+    // Headers
+    if (HEADERS[name]) {
+      sh.getRange(1,1,1,HEADERS[name].length).setValues([HEADERS[name]]);
+    }
+  });
+  // Data‑validation dropdowns
+  applyDataValidations();
+}
+
+function applyDataValidations() {
+  const ss = SpreadsheetApp.getActive();
+  const services = ss.getSheetByName(SHEETS.SERVICES);
+  const machines = ss.getSheetByName(SHEETS.MACHINES);
+  const clients = ss.getSheetByName(SHEETS.CLIENTS);
+  const billing = ss.getSheetByName(SHEETS.BILLING_CONFIG);
+
+  const numRows = 1000; // arbitrary range for validations
+
+  // Serial dropdown
+  const serialRule = SpreadsheetApp.newDataValidation()
+      .requireRange(machines.getRange('A2:A'))
+      .setAllowInvalid(false)
+      .build();
+  services.getRange(2,2,numRows,1).setDataValidation(serialRule);
+
+  // ClientID dropdown
+  const clientRule = SpreadsheetApp.newDataValidation()
+      .requireRange(clients.getRange('A2:A'))
+      .setAllowInvalid(false)
+      .build();
+  services.getRange(2,3,numRows,1).setDataValidation(clientRule);
+
+  // ServiceType dropdown
+  const serviceTypeRule = SpreadsheetApp.newDataValidation()
+      .requireRange(billing.getRange('A2:A'))
+      .setAllowInvalid(false)
+      .build();
+  services.getRange(2,5,numRows,1).setDataValidation(serviceTypeRule);
+  }
+
+// ╭─────────────────────────────────────────────╮
+// │ TEMPLATE DOC                               │
+// ╰─────────────────────────────────────────────╯
+function ensureTemplateDoc() {
+  if (CONFIG.TEMPLATE_DOC_ID !== 'SET_BY_SETUP') return; // Already set
+  const doc = DocumentApp.create('Invoice Template (Auto‑generated)');
+  const body = doc.getBody();
+  body.appendParagraph(CONFIG.COMPANY_NAME).setBold(true).setFontSize(16);
+  body.appendParagraph(CONFIG.COMPANY_ADDRESS);
+  body.appendParagraph('CNPJ: ' + CONFIG.CNPJ + '    IM: ' + CONFIG.IM);
+  body.appendHorizontalRule();
+  body.appendParagraph('INVOICE # {{InvoiceID}}').setAlignment(DocumentApp.HorizontalAlignment.CENTER).setBold(true).setFontSize(14);
+  body.appendParagraph('\nBill To:');
+  body.appendParagraph('{{ClientName}}');
+  body.appendParagraph('Attn: {{ContactName}} – {{ContactPosition}}');
+  body.appendParagraph('{{ClientAddress}}');
+  body.appendParagraph('Phone: {{ContactPhone}}');
+  body.appendParagraph('Email: {{ContactEmail}}');
+  body.appendParagraph('Tax ID: {{ClientTaxId}}');
+  body.appendParagraph('\nIssue Date: {{IssueDate}}');
+  body.appendParagraph('Due Date: {{DueDate}}');
+  body.appendParagraph('Status: {{Status}}');
+  body.appendHorizontalRule();
+  body.appendParagraph('{{LineItemsTable}}');
+  body.appendParagraph('\nSubtotal: {{Subtotal}}');
+  body.appendParagraph('Taxes ({{TaxRate}}%): {{Taxes}}');
+  body.appendParagraph('TOTAL DUE: {{Total}}').setBold(true);
+  body.appendParagraph('\nNotes: {{Notes}}');
+  body.appendParagraph('\nThank you for your business!');
+  doc.saveAndClose();
+
+  // Move to PDF folder
+  const file = DriveApp.getFileById(doc.getId());
+  DriveApp.getFolderById(CONFIG.PDF_FOLDER_ID).addFile(file);
+  DriveApp.getRootFolder().removeFile(file);
+
+  // Persist ID to script properties for future runs
+  PropertiesService.getScriptProperties().setProperty('TEMPLATE_DOC_ID', doc.getId());
+  CONFIG.TEMPLATE_DOC_ID = doc.getId();
+  }
+
+// ╭─────────────────────────────────────────────╮
+// │ DASHBOARD BUILDER                          │
+// ╰─────────────────────────────────────────────╯
+function refreshDashboards() {
+  const ss = SpreadsheetApp.getActive();
+  let db = ss.getSheetByName(SHEETS.DASHBOARD);
+  if (db) ss.deleteSheet(db);
+  db = ss.insertSheet(SHEETS.DASHBOARD);
+
+  // --- Summary tables via QUERY formulas ---
+  const headerStyle = SpreadsheetApp.newTextStyle().setBold(true).build();
+
+  // 1. Revenue by Month
+  db.getRange('A1').setValue('Revenue by Month').setTextStyle(headerStyle);
+  db.getRange('A2').setFormula("=" +
+    "QUERY(Invoices!$F$2:$H, \"select month(F), sum(G) where F is not null group by month(F) order by month(F) label month(F) 'Month', sum(G) 'Revenue'\")");
+  ensureNonEmpty(db.getRange('A2').getDataRegion(), ['Month','Revenue']);
+  buildChart_(db, db.getRange('A2').getDataRegion(), 'COLUMN', 'Monthly Revenue', 'E2');
+
+  // 2. Profit by Month (Revenue – Cost placeholder)
+  db.getRange('A15').setValue('Profit by Month').setTextStyle(headerStyle);
+  db.getRange('A16').setFormula("=" +
+    "ARRAYFORMULA({INDEX(QUERY(Invoices!$F$2:$H, \"select month(F), sum(G) where F is not null group by month(F) order by month(F)\",1),,1), " +
+    "INDEX(QUERY(Invoices!$F$2:$H, \"select month(F), sum(G) where F is not null group by month(F) order by month(F)\",1),,2) - 0})"); // cost=0 placeholder
+  ensureNonEmpty(db.getRange('A16').getDataRegion(), ['Month','Profit']);
+  buildChart_(db, db.getRange('A16').getDataRegion(), 'LINE', 'Monthly Profit', 'E15');
+
+  // 3. Machines Status Count
+  db.getRange('A28').setValue('Machines by Status').setTextStyle(headerStyle);
+  db.getRange('A29').setFormula("=" +
+    "QUERY(Machines!$D$2:$H, \"select H, count(H) where H is not null group by H label H 'Status', count(H) 'Count'\")");
+  ensureNonEmpty(db.getRange('A29').getDataRegion(), ['Status','Count']);
+  buildChart_(db, db.getRange('A29').getDataRegion(), 'PIE', 'Machines Status', 'E28');
+
+  // 4. Avg Services per Machine
+  db.getRange('A41').setValue('Avg Services per Machine').setTextStyle(headerStyle);
+  db.getRange('A42').setFormula("=" +
+    "IFERROR(ROUND( COUNTA(Services!B2:B) / COUNTA(UNIQUE(Services!B2:B)),2),0)");
+
+  // 5. Avg Storage Days
+  db.getRange('A44').setValue('Avg Storage Days').setTextStyle(headerStyle);
+  db.getRange('A45').setFormula("=" +
+    "IFERROR(ROUND( AVERAGE(IF(Machines!F2:F<>\"\", Machines!F2:F - Machines!E2:E, TODAY()-Machines!E2:E)),2),0)");
+
+  // 6. Avg Days to Receive Payment
+  db.getRange('A47').setValue('Avg Days to Receive').setTextStyle(headerStyle);
+  db.getRange('A48').setFormula("=" +
+    "IFERROR(ROUND(AVERAGE(IF(Invoices!I2:I<>\"\", Invoices!I2:I - Invoices!F2:F, TODAY()-Invoices!F2:F)),2),0)");
+  }
+
+/******************* EVENT: onEdit in Services *******************/
+function addService(e) {
+  const range = e.range
+  const sh = range.getSheet()
+  if (sh.getName() !== SHEETS.SERVICES) return
+  const row = range.getRow()
+  if (row === 1) return
+
+  const values = sh.getRange(row, 1, 1, sh.getLastColumn()).getValues()[0]
+  const serial = values[1]
+  const clientIDCell = sh.getRange(row, 3)
+
+  // Auto‑fill ClientID based on Serial
+  if (serial && !clientIDCell.getValue()) {
+    const ss = SpreadsheetApp.getActive()
+    const machines = ss.getSheetByName(SHEETS.MACHINES)
+    const machinesData = machines
+      .getRange(2, 1, machines.getLastRow() - 1, 3)
+      .getValues()
+    const match = machinesData.find((r) => r[0] === serial)
+    if (match) {
+      clientIDCell.setValue(match[2])
+    }
+  }
+
+  // Auto‑calc UnitPrice & TotalPrice
+  const serviceType = values[4]
+  const unitPriceCell = sh.getRange(row, 7)
+  const qtyCell = sh.getRange(row, 8)
+  const totalCell = sh.getRange(row, 9)
+
+  if (serviceType && !unitPriceCell.getValue()) {
+    const ss = SpreadsheetApp.getActive()
+    const billing = ss.getSheetByName(SHEETS.BILLING_CONFIG)
+    const billingData = billing
+      .getRange(2, 1, billing.getLastRow() - 1, 2)
+      .getValues()
+    const match = billingData.find((r) => r[0] === serviceType)
+    if (match) unitPriceCell.setValue(match[1])
+  }
+
+  // compute total when unit or qty changes
+  const unit = unitPriceCell.getValue()
+  const qty = qtyCell.getValue() || 1
+  if (unit) totalCell.setValue(unit * qty)
+  }
+
+/******************* MONTHLY BILLING *******************/
+function runMonthlyBilling() {
+  const ss = SpreadsheetApp.getActive()
+  const servicesSh = ss.getSheetByName(SHEETS.SERVICES)
+  const machinesSh = ss.getSheetByName(SHEETS.MACHINES)
+  const invoicesSh = ss.getSheetByName(SHEETS.INVOICES)
+
+  const today = new Date()
+  const periodStart = new Date(today.getFullYear(), today.getMonth() - 1, 1) // previous month first day
+  const periodEnd = new Date(today.getFullYear(), today.getMonth(), 0) // previous month last day
+
+  const invData = {} // keyed by clientID → { lineItems:[], total:0 }
+
+  // Storage charges
+  const machines = machinesSh
+    .getRange(
+      2,
+      1,
+      machinesSh.getLastRow() - 1,
+      HEADERS[SHEETS.MACHINES].length
+    )
+    .getValues()
+  machines.forEach((row) => {
+    const [serial, , clientID, storageRate, , dateOut, status, lastBilled] = row
+    if (!clientID || !storageRate) return
+    const inStorage =
+      (!dateOut || new Date(dateOut) > periodEnd) && status === "stored"
+    if (!inStorage) return
+
+    const daysInMonth = daysBetween(periodStart, periodEnd) + 1
+    const charge = (storageRate / 30) * daysInMonth
+    addLineItem(invData, clientID, {
+      description: `Storage fee (${serial}) – ${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`,
+      qty: daysInMonth,
+      unit: (storageRate / 30).toFixed(2),
+      subtotal: charge.toFixed(2),
+    })
+  })
+
+  // Service charges
+  const services = servicesSh
+    .getRange(
+      2,
+      1,
+      servicesSh.getLastRow() - 1,
+      HEADERS[SHEETS.SERVICES].length
+    )
+    .getValues()
+  services.forEach((row, i) => {
+    const [
+      serviceID,
+      serial,
+      clientID,
+      serviceDate,
+      ,
+      desc,
+      ,
+      ,
+      total,
+      billed,
+    ] = row
+    if (billed === "YES") return
+    const sDate = new Date(serviceDate)
+    if (sDate < periodStart || sDate > periodEnd) return
+    addLineItem(invData, clientID, {
+      description: `${desc || "Service"} (${serial}) – ${serviceDate}`,
+      qty: 1,
+      unit: total,
+      subtotal: total,
+    })
+    // mark as billed
+    servicesSh.getRange(i + 2, 10).setValue("YES")
+  })
+
+  // Create invoices by client
+  const clientsSh = ss.getSheetByName(SHEETS.CLIENTS)
+  const clientsData = clientsSh
+    .getRange(2, 1, clientsSh.getLastRow() - 1, HEADERS[SHEETS.CLIENTS].length)
+    .getValues()
+  const clientMap = {}
+  clientsData.forEach((r) => (clientMap[r[0]] = r))
+
+  Object.keys(invData).forEach((clientID) => {
+    const data = invData[clientID]
+    if (!data || data.lineItems.length === 0) return
+    const invoiceID = Utilities.getUuid()
+    const issueDate = new Date()
+    const dueDate = new Date(issueDate)
+    dueDate.setDate(dueDate.getDate() + 15)
+
+    const pdfBlob = generateInvoicePDF(
+      invoiceID,
+      clientID,
+      clientMap[clientID],
+      data,
+      issueDate,
+      dueDate
+    )
+    const pdfFile = DriveApp.getFolderById(CONFIG.PDF_FOLDER_ID).createFile(
+      pdfBlob
+    )
+
+    // Save invoice row
+    invoicesSh.appendRow([
+      invoiceID,
+      clientID,
+      periodStart,
+      periodEnd,
+      issueDate,
+      dueDate,
+      data.total,
+      "NO",
+      "",
+      "NO",
+      pdfFile.getUrl(),
+      "",
+      "",
+      "",
+    ])
+
+    // Email client
+    emailInvoice(
+      clientMap[clientID],
+      pdfFile.getBlob(),
+      invoiceID,
+      issueDate,
+      dueDate,
+      data.total
+    )
+  })
+  }
+
+function addLineItem(invData, clientID, item) {
+  if (!invData[clientID]) invData[clientID] = { lineItems: [], total: 0 }
+  invData[clientID].lineItems.push(item)
+  invData[clientID].total += parseFloat(item.subtotal)
+  }
+
+/******************* PDF GENERATION *******************/
+function generateInvoicePDF(
+  invoiceID,
+  clientID,
+  client,
+  data,
+  issueDate,
+  dueDate
+  ) {
+  const templateId = ensureTemplate()
+  const doc = DocumentApp.openById(templateId).copy(`Invoice ${invoiceID}`)
+  const body = doc.getBody().getText()
+
+  // Build line‑items table string
+  const tableRows = data.lineItems
+    .map((li) => `${li.description} | ${li.qty} | ${li.unit} | ${li.subtotal}`)
+    .join("\n")
+
+  const replacements = {
+    "{{InvoiceID}}": invoiceID,
+    "{{ClientName}}": client[1] || "",
+    "{{ContactName}}": client[4] || "",
+    "{{ContactPosition}}": client[5] || "",
+    "{{ContactEmail}}": client[6] || "",
+    "{{ContactPhone}}": client[7] || "",
+    "{{ClientAddress}}": client[2] || "",
+    "{{ClientTaxId}}": client[3] || "",
+    "{{IssueDate}}": issueDate.toLocaleDateString(),
+    "{{DueDate}}": dueDate.toLocaleDateString(),
+    "{{Status}}": "Open",
+    "{{LineItemsTable}}": tableRows,
+    "{{Subtotal}}": data.total.toFixed(2),
+    "{{TaxRate}}": "0",
+    "{{Taxes}}": "0.00",
+    "{{Total}}": data.total.toFixed(2),
+    "{{Notes}}": "",
+  }
+
+  let docBodyText = doc.getBody().getText()
+  Object.keys(replacements).forEach((k) => {
+    docBodyText = docBodyText.replace(new RegExp(k, "g"), replacements[k])
+  })
+  doc.getBody().setText(docBodyText)
+  doc.saveAndClose()
+  return doc.getBlob().setName(`Invoice_${invoiceID}.pdf`)
+  }
+
+/******************* EMAIL *******************/
+function emailInvoice(client, blob, invoiceID, issueDate, dueDate, total) {
+  const email = client[6]
+  if (!email) return
+  MailApp.sendEmail({
+    to: email,
+    subject: `Invoice ${invoiceID} – Devops Consultoria`,
+    htmlBody: `<p>Hello ${
+      client[4] || client[1]
+    },</p><p>Attached is invoice <b>${invoiceID}</b> issued on ${issueDate.toLocaleDateString()} and due on ${dueDate.toLocaleDateString()} for <b>R$ ${total.toFixed(
+      2
+    )}</b>.</p><p>Thank you!</p>`,
+    attachments: [blob],
+  })
+  }
+
+/******************* OVERDUE *******************/
+function updateOverdueStatus() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEETS.INVOICES)
+  const data = sh
+    .getRange(2, 1, sh.getLastRow() - 1, HEADERS[SHEETS.INVOICES].length)
+    .getValues()
+  const today = new Date()
+  data.forEach((r, i) => {
+    const paid = r[7]
+    const due = new Date(r[5])
+    const overdueCell = sh.getRange(i + 2, 10)
+    overdueCell.setValue(paid === "YES" ? "NO" : today > due ? "YES" : "NO")
+  })
+  }
+
+/******************* NFSe PLACEHOLDER *******************/
+function issueNFSe() {
+  const ss = SpreadsheetApp.getActive()
+  const invoicesSh = ss.getSheetByName(SHEETS.INVOICES)
+  const row = invoicesSh.getActiveRange().getRow()
+  if (row === 1) {
+    SpreadsheetApp.getUi().alert("Select an invoice row.")
+    return
+  }
+  const inv = invoicesSh
+    .getRange(row, 1, 1, HEADERS[SHEETS.INVOICES].length)
+    .getValues()[0]
+  const invoiceID = inv[0]
+  // Placeholder API call
+  SpreadsheetApp.getUi().alert(
+    `NFSe API call placeholder for invoice ${invoiceID}. Configure NFSE_TOKEN.`
+  )
+  }
+
+// ===== DASHBOARD BUILDER =====
+function refreshDashboards(){
+  const ss = SpreadsheetApp.getActive();
+  let dash = ss.getSheetByName(SHEETS.DASHBOARD);
+  if(!dash) dash = ss.insertSheet(SHEETS.DASHBOARD);
+  dash.clear();
+  dash.setTabColor('#003B70');
+  dash.setFrozenRows(1);
+
+  // ===== Revenue by Month table =====
+  dash.getRange('A1').setValue('Revenue by Month');
+  dash.getRange('A2').setFormula(`=QUERY(${SHEETS.INVOICES}!E:G,"select TEXT(E, 'yyyy-mm'), sum(G) where G>0 group by TEXT(E, 'yyyy-mm') label sum(G) 'Revenue', TEXT(E, 'yyyy-mm') 'Month'",1)`);
+  const revLastRow = dash.getRange('A:A').getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow();
+  const revChart = dash.newChart()
+      .addRange(dash.getRange(2,1,revLastRow-1,2))
+      .setChartType(Charts.ChartType.COLUMN)
+      .setPosition(1,4,0,0)
+      .setOption('title','Revenue by Month')
+      .build();
+  dash.insertChart(revChart);
+
+  // ===== Machines Status =====
+  dash.getRange('D1').setValue('Machines Status');
+  dash.getRange('D2').setFormula(`=QUERY(${SHEETS.MACHINES}!G:G,"select G, count(G) where G<>'' group by G",1)`);
+  const statLastRow = dash.getRange('D:D').getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow();
+  const statusChart = dash.newChart()
+      .addRange(dash.getRange(2,4,statLastRow-1,2))
+      .setChartType(Charts.ChartType.PIE)
+      .setPosition(1,8,0,0)
+      .setOption('title','Current Machine Status')
+      .build();
+  dash.insertChart(statusChart);
+
+  // ===== Avg Days in Storage =====
+  dash.getRange('A20').setValue('Average days a machine stays in storage');
+  dash.getRange('A21').setFormula(`=IFERROR(AVERAGE(IF(${SHEETS.MACHINES}!G:G="stored", TODAY()-${SHEETS.MACHINES}!E:E, )),0)`);
+
+  // ===== Services per Machine =====
+  dash.getRange('D20').setValue('Services per Machine');
+  dash.getRange('D21').setFormula(`=QUERY(${SHEETS.SERVICES}!B:B,"select B, count(B) where B<>'' group by B",1)`);
+  const svcLastRow = dash.getRange('D:D').getNextDataCell(SpreadsheetApp.Direction.DOWN).getRow();
+  const svcChart = dash.newChart()
+      .addRange(dash.getRange(21,4,svcLastRow-20,2))
+      .setChartType(Charts.ChartType.BAR)
+      .setPosition(20,8,0,0)
+      .setOption('title','Services per Machine')
+      .build();
+  dash.insertChart(svcChart);
+  }
+
+/******************* UTILITIES *******************/
+function daysBetween(start, end) {
+  const oneDay = 1000 * 60 * 60 * 24
+  return Math.floor((end - start) / oneDay)
+  }
+function formatCNPJ(cnpj) {
+  return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")
+  }
